@@ -5,7 +5,6 @@ using UnityEngine;
 public class CarUnity : MonoBehaviour
 {
     public Vector3 dir;
-    public float speed;
     public GameObject CarModel;
 
     private Quaternion _facing;
@@ -19,8 +18,9 @@ public class CarUnity : MonoBehaviour
     void Update()
     {
         //dir.z = 1 + (dir. * dir.y) * (1 / 2);
-        //dir = dir.normalized;
-        transform.position = dir;
+        dir = dir.normalized;
+        //transform.position = dir;
+        transform.Translate(dir * Time.deltaTime);
         Quaternion newRotation = Quaternion.LookRotation(new Vector3(dir.x, 0, dir.z));
         CarModel.transform.rotation = newRotation;
     }

@@ -8,7 +8,7 @@ public class Autormovil : MonoBehaviour
     Vector3[] geometria;
     public Vector3 A;
     public Vector3 B;
-    float t;
+    public float t;
 
     Vector3[] ApplyTransform2()
     {
