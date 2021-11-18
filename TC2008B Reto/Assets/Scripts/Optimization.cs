@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class Optimization : MonoBehaviour
 {
-
+    public List<GameObject> SceneObjs;
     Camera m_cam;
 
     Vector3 CAMERA;
@@ -41,6 +41,9 @@ public class Optimization : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        
+        foreach(GameObject G in SceneObjs)
+        {
+            G.GetComponent<Renderer>().enabled = true;
+        }
     }
 }
