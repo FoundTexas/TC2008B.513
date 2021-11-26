@@ -11,9 +11,9 @@ import random
 import time
 import socket
 
-host, port = "192.168.0.12", 8080  # Poner host y puerto
-sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-sock.connect((host, port))
+#host, port = "192.168.0.12", 8080  # Poner host y puerto
+#sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+#sock.connect((host, port))
 
 
 class Grafo():
@@ -25,10 +25,10 @@ class Grafo():
 
 
 class Calle(Agent):
-    def __init__(self, unique_id, model, dir, largo, inicio, fin):
+    def __init__(self, unique_id, model, dir, largo, inicio):
         super().__init__(unique_id, model)
+        self.type = "CALLE"
         self.inicio = inicio
-        self.fin = fin
         self.dir = dir
         self.conexiones = []
         self.largo = largo
@@ -57,7 +57,7 @@ class Calle(Agent):
                 if len(self.model.grid.get_cell_list_contents([self.inicio[0] - i, self.inicio[1]])) < 2:
                     temp += 1
 
-            self.numCarros = temp
+        self.numCarros = temp
 
     def step(self):
         self.contarAutos()
@@ -66,7 +66,9 @@ class Calle(Agent):
 class CarPython(Agent):
     def __init__(self, unique_id, model, calle, target):
         super().__init__(unique_id, model)
+        self.type = "CAR"
         self.calle = calle
+        self.dir = self.calle.dir
         self.target = target
         self.speed = 20
         self.acDelta = 1
@@ -79,28 +81,75 @@ class CarPython(Agent):
         else:
             self.moverCarro()
 
+    def isOtherCar(self, cellCont):
+        if len(cellCont) > 0:
+            for index in range(len(cellCont)):
+                if cellCont[index].type == "CAR":
+                    return True
+        return False
+
+    def isGreenLight(self, cellCont):
+        if len(cellCont) > 0:
+            for index in range(len(cellCont)):
+                if cellCont[index].type == "SPLT":
+                    if cellCont[index].state == 2 and cellCont[index].viewDir == self.dir:
+                        return False
+        return True
+
+    def nextCellCont(self):
+        if self.dir == "N":
+            return self.model.grid.get_cell_list_contents(self.model.grid.torus_adj((self.pos[0], self.pos[1] + 1)))
+        elif self.dir == "S":
+            return self.model.grid.get_cell_list_contents(self.model.grid.torus_adj((self.pos[0], self.pos[1] - 1)))
+        elif self.dir == "E":
+            return self.model.grid.get_cell_list_contents(self.model.grid.torus_adj((self.pos[0] + 1, self.pos[1])))
+        elif self.dir == "O":
+            return self.model.grid.get_cell_list_contents(self.model.grid.torus_adj((self.pos[0] - 1, self.pos[1])))
+
     def moverCarro(self):
-        if self.calle.dir == "E":
-            if len(self.model.grid.get_cell_list_contents((self.pos[0]+1, self.pos[1]))) < 3:
-                self.model.grid.move_agent(self, (self.pos[0]+1, self.pos[1]))
-        elif self.calle.dir == "O":
-            if len(self.model.grid.get_cell_list_contents((self.pos[0]-1, self.pos[1]))) < 3:
-                self.model.grid.move_agent(self, (self.pos[0]-1, self.pos[1]))
-        elif self.calle.dir == "N":
-            if 1>0:
-                self.model.grid.move_agent(self, (self.pos[0], self.pos[1]+1))
-        elif self.calle.dir == "S":
-            if len(self.model.grid.get_cell_list_contents((self.pos[0], self.pos[1]-1))) < 3:
-                self.model.grid.move_agent(self, (self.pos[0], self.pos[1]-1))
+        nextCell = self.nextCellCont()
+        carNFront = self.isOtherCar(nextCell)
+        greenL = self.isGreenLight(nextCell)
+
+        if carNFront == False and greenL == True:
+            if self.dir == "N":
+                self.model.grid.move_agent(self, (self.pos[0], self.pos[1] + 1))
+            elif self.dir == "S":
+                self.model.grid.move_agent(self, (self.pos[0], self.pos[1] - 1))
+            elif self.dir == "E":
+                self.model.grid.move_agent(self, (self.pos[0] + 1, self.pos[1]))
+            elif self.dir == "O":
+                self.model.grid.move_agent(self, (self.pos[0] - 1, self.pos[1]))
 
     def step(self):
         self.cambiarCalle()
-        temp = [self.pos[0], 0, self.pos[1]]
-        posString = ','.join(map(str, temp))
-        sock.sendall(posString.encode("UTF-8"))
+        #temp = [self.pos[0], 0, self.pos[1]]
+        #posString = ','.join(map(str, temp))
+        #sock.sendall(posString.encode("UTF-8"))
 
         print("Calle: ", self.calle.unique_id)
         print("Pos: ", self.pos)
+
+class StopLight(Agent):
+    def __init__(self, unique_id, model, viewDir):
+        super().__init__(unique_id, model)
+        self.viewDir = viewDir
+        self.state = 1  # 0=verde 1=amarillo 2=rojo
+        self.type = "SPLT"
+        self.others = []
+        self.holdOn = 0
+
+    def otherSPLTS(self, others):
+        self.others = others
+
+    def step(self):
+        if self.state == 2 and self.holdOn > 0:
+            self.holdOn -= 1
+        elif self.holdOn == 0:
+            self.state = 0
+            for i in range(len(self.others)):
+                self.others[i].state = 2
+                self.others[i].holdOn = 3
 
 
 class GPS(Model):
@@ -110,52 +159,52 @@ class GPS(Model):
         self.schedule = RandomActivation(self)
         self.gps = []
 
-        c1 = Calle(1, self, "N", 1, [3, 0], [3, 1])
+        c1 = Calle(1, self, "N", 1, [3, 0])
         self.grid.place_agent(c1, tuple(c1.inicio))
         self.gps.append(c1)
-        c2 = Calle(2, self, "N", 1, [3, 1], [3, 2])
+        c2 = Calle(2, self, "N", 1, [3, 1])
         self.grid.place_agent(c2, tuple(c2.inicio))
         self.gps.append(c2)
-        c2_2 = Calle(22, self, "E", 1, [3, 1], [5, 1])
+        c2_2 = Calle(22, self, "E", 1, [3, 1])
         self.grid.place_agent(c2_2, tuple(c2_2.inicio))
         self.gps.append(c2_2)
-        c3 = Calle(3, self, "N", 2, [3, 2], [3, 4])
+        c3 = Calle(3, self, "N", 2, [3, 2])
         self.grid.place_agent(c3, tuple(c3.inicio))
         self.gps.append(c3)
-        c5 = Calle(5, self, "O", 1, [3, 4], [2, 4])
+        c5 = Calle(5, self, "O", 1, [3, 4])
         self.grid.place_agent(c5, tuple(c5.inicio))
         self.gps.append(c5)
-        c6 = Calle(6, self, "S", 1, [2, 4], [2, 3])
+        c6 = Calle(6, self, "S", 1, [2, 4])
         self.grid.place_agent(c6, tuple(c6.inicio))
         self.gps.append(c6)
-        c7 = Calle(7, self, "S", 1, [2, 3], [2, 2])
+        c7 = Calle(7, self, "S", 1, [2, 3])
         self.grid.place_agent(c7, tuple(c7.inicio))
         self.gps.append(c7)
-        c8 = Calle(8, self, "S", 2, [2, 2], [2, 0])
+        c8 = Calle(8, self, "S", 2, [2, 2])
         self.grid.place_agent(c8, tuple(c8.inicio))
         self.gps.append(c8)
-        c8_2 = Calle(82, self, "O", 2, [2, 2], [0, 2])
+        c8_2 = Calle(82, self, "O", 2, [2, 2])
         self.grid.place_agent(c8_2, tuple(c8_2.inicio))
         self.gps.append(c8_2)
-        c10 = Calle(10, self, "E", 1, [2, 0], [3, 0])
+        c10 = Calle(10, self, "E", 1, [2, 0])
         self.grid.place_agent(c10, tuple(c10.inicio))
         self.gps.append(c10)
-        c12 = Calle(12, self, "N", 1, [5, 1], [5, 2])
+        c12 = Calle(12, self, "N", 1, [5, 1])
         self.grid.place_agent(c12, tuple(c12.inicio))
         self.gps.append(c12)
-        c13 = Calle(13, self, "O", 2, [5, 2], [3, 2])
+        c13 = Calle(13, self, "O", 2, [5, 2])
         self.grid.place_agent(c13, tuple(c13.inicio))
         self.gps.append(c13)
-        c17 = Calle(17, self, "E", 2, [0, 3], [2, 3])
+        c17 = Calle(17, self, "E", 2, [0, 3])
         self.grid.place_agent(c17, tuple(c17.inicio))
         self.gps.append(c17)
-        c18 = Calle(18, self, "S", 2, [0, 2], [0, 0])
+        c18 = Calle(18, self, "S", 2, [0, 2])
         self.grid.place_agent(c18, tuple(c18.inicio))
         self.gps.append(c18)
-        c18_2 = Calle(182, self, "N", 1, [0, 2], [0, 3])
+        c18_2 = Calle(182, self, "N", 1, [0, 2])
         self.grid.place_agent(c18_2, tuple(c18_2.inicio))
         self.gps.append(c18_2)
-        c21 = Calle(21, self, "E", 1, [0, 0], [2, 0])
+        c21 = Calle(21, self, "E", 1, [0, 0])
         self.grid.place_agent(c21, tuple(c21.inicio))
         self.gps.append(c21)
 
@@ -183,8 +232,6 @@ class GPS(Model):
 
     def step(self):
         self.schedule.step()
-
-        #for i in range(self.numAgents):
 
 
 class Main:
