@@ -9,19 +9,6 @@ import json
 import numpy as np
 from model import CruceModel
 
-width = 30
-height = 30
-
-def updatePositions():
-    global flock
-    positions = []
-    for boid in flock:
-        boid.apply_behaviour(flock)
-        boid.update()
-        pos = boid.edges()
-        positions.append(pos)
-    return positions
-
 def positionsToJSON(ps):
     posDICT = []
     for p in ps:

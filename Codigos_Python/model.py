@@ -5,12 +5,11 @@ from mesa.visualization.modules import CanvasGrid
 from mesa.visualization.ModularVisualization import ModularServer
 from mesa.visualization.UserParam import UserSettableParameter
 import random
-import time
 
-host, port = "192.168.0.12", 8080  # Poner host y puerto
-sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-sock.connect((host, port))
-
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from flask import Flask, render_template, request, jsonify
+import logging
+import json, os, atexit
 
 class Semaforo(Agent):
     def __init__(self, unique_id, model,s):
@@ -21,6 +20,8 @@ class Semaforo(Agent):
       self.Green = False
       self.Red = False
       self.Started = False
+      self.rpos = [0.0,0.0]
+      self.dir = 0
     
     def SetPair(self,Ne,No):
       self.Spar = Ne
@@ -33,6 +34,18 @@ class Semaforo(Agent):
             for index in range(len(cellCont)):
                 if cellCont[index].type == "CALLE":
                     d = cellCont[index].Dir
+                    if d[0] < 0:
+                        self.rpos = [self.pos[0], self.pos[1]+0.5]
+                        self.dir = 0
+                    elif d[0] > 0:
+                        self.rpos = [self.pos[0], self.pos[1]-0.5]
+                        self.dir = 1
+                    elif d[1] < 0:
+                        self.rpos = [self.pos[0]-0.5, self.pos[1]]
+                        self.dir = 2
+                    elif d[1] > 0:
+                        self.rpos = [self.pos[0]+0.5, self.pos[1]]
+                        self.dir = 3
         else:
             return False
 
@@ -186,6 +199,27 @@ class CruceModel(Model):
                 self.grid.place_agent(o,(g,p))
             diry *= -1
 
+
+        o = Cruce(1000,self,[0,-1],[0,-1])
+        self.grid.place_agent(o,(0,5))
+        obs1 = Calle(1000,self,[1,0])
+        self.grid.place_agent(obs1, (0,4))
+
+        o = Cruce(1001,self,[0,1],[0,1])
+        self.grid.place_agent(o,(9,4))
+        obs1 = Calle(1001,self,[-1,0])
+        self.grid.place_agent(obs1, (9,5))
+
+        o = Cruce(1002,self,[1,0],[1,0])
+        self.grid.place_agent(o,(4,0))
+        obs1 = Calle(1002,self,[0,1])
+        self.grid.place_agent(obs1, (5,0))
+
+        o = Cruce(1003,self,[-1,0],[-1,0])
+        self.grid.place_agent(o,(5,9))
+        obs1 = Calle(1003,self,[0,-1])
+        self.grid.place_agent(obs1, (4,9))
+
         s1 = Semaforo(111,self,0)
         self.grid.place_agent(s1, (round((width/2)-1), round((height/2)+1)))
         s2 = Semaforo(112,self,0)
@@ -230,87 +264,102 @@ class CruceModel(Model):
           a =  Coche(i, self)
           self.grid.place_agent(a, (4, 4))
           self.grid.move_to_empty(a)
+          print(a.pos)
             
           self.schedule.add(a)
         
-        for x in range(round((width-1)/2)):
+        for x in range(1,round((width-1)/2)):
           obs1 = Calle(x,self,[1,0])
           self.grid.place_agent(obs1, (x, round((width-1)/2)))
           obs2 = Calle(x+10,self,[-1,0])
           self.grid.place_agent(obs2, (x, round(width/2)))
         
-        for x in range(round((width+1)/2), width):
+        for x in range(round((width+1)/2), width-1):
           obs1 = Calle(x,self,[1,0])
           self.grid.place_agent(obs1, (x, round((width-1)/2)))
           obs2 = Calle(x+10,self,[-1,0])
           self.grid.place_agent(obs2, (x, round(width/2)))
 
-        for y in range(round((height-1)/2)):
+        for y in range(1,round((height-1)/2)):
           obs1 = Calle(y,self,[0,-1])
           self.grid.place_agent(obs1, (round((height-1)/2),y))
           obs2 = Calle(y+10,self,[0,1])
           self.grid.place_agent(obs2, (round(height/2),y))
         
-        for y in range(round((height+1)/2), height):
+        for y in range(round((height+1)/2), height-1):
           obs1 = Calle(y,self,[0,-1])
           self.grid.place_agent(obs1, (round((height-1)/2),y))
           obs2 = Calle(y+10,self,[0,1])
           self.grid.place_agent(obs2, (round(height/2),y))
 
     def step(self):
-        self.schedule2.step()
         self.schedule.step()
 
+        ps = []
+        for i in range(self.num_agents):
+            xy = self.schedule.agents[i].pos
+            p = [xy[0],0,xy[1]]
+            ps.append(p)
+        return ps
 
-def agent_portrayal(agent):
-    portrayal = {"Shape": "rect", "Filled": "True", "w": 1, "h": 1}
+    def step2(self):
+        self.schedule2.step()
+        ps = []
+        for i in range(len(self.schedule2.agents)):
+            p = self.schedule2.agents[i]
+            print(p)
+            ps.append(p)
+        return ps
 
-    if agent.type == "COCHE":
-        if agent.Dir == [1,0]:
-            portrayal["h"] = 0.5
-        elif agent.Dir == [-1,0]:
-            portrayal["h"] = 0.5
-        elif agent.Dir == [0,1]:
-            portrayal["w"] = 0.5
-        elif agent.Dir == [0,-1]:
-            portrayal["w"] = 0.5
 
-        portrayal["Color"] = "SlateBlue"
-        portrayal["Layer"] = 2
+app = Flask(__name__, static_url_path = '')
 
-    elif agent.type == "OBSTACULO":
-        portrayal["Color"] = "YellowGreen"
-        portrayal["Layer"] = 1
+model = CruceModel(4,10,10)
+
+def positionsToJSON(ps):
+    posDICT = []
+    for p in ps:
+        pos = {
+            "x" : p[0],
+            "y" : p[1],
+            "z" : p[2]
+        }
+        posDICT.append(pos)
+    return json.dumps(posDICT)
+
+def BoolsToJSON(g):
+    posDICT = []
+    for p in g:
+        pos = {
+            "Green" : p.Green,
+            "Yellow" : p.Yellow,
+            "Red" : p.Red,
+            "Posx" : p.rpos[0],
+            "Posz" : p.rpos[1],
+            "dir" : p.dir
+        }
+        posDICT.append(pos)
+    return json.dumps(posDICT)
+
+port = int(os.getenv('PORT',8585))
+
+@app.route('/')
+
+def root():
+    return jsonify([{"message":"Hello"}])
+
+@app.route('/muliagentes', methods=['GET','POST'])
+
+def multiagentes():
+    positions = model.step()
+    return positionsToJSON(positions)
+
+@app.route('/semaforos', methods=['GET','POST'])
+
+def semaforos():
+    lights = model.step2()
+    return BoolsToJSON(lights)
     
-    elif agent.type == "CALLE":
-        portrayal["Color"] = "grey"
-        portrayal["Layer"] = 1
     
-    elif agent.type == "CRUCE":
-        portrayal["Color"] = "grey"
-        portrayal["Layer"] = 1
-    
-    elif agent.type == "SEMAFORO":
-        portrayal["w"] = 0.5
-        portrayal["h"] = 0.5
-        if agent.Yellow == True:
-            portrayal["Color"] = "yellow"
-        elif agent.Green == True:
-            portrayal["Color"] = "green"
-        elif agent.Red == True:
-            portrayal["Color"] = "red"
-        portrayal["Layer"] = 4
-
-    return portrayal
-
-
-grid = CanvasGrid(agent_portrayal,10, 10, 600, 500)
-num_agents_slider = UserSettableParameter('slider', "Number of agents", 1, 1, 10, 1)
-
-server = ModularServer(CruceModel,
-                       [grid],
-                       "Simulación Cajas",
-                       {"N": 3, "width": 10, "height": 10})
-
-server.port = 8521
-server.launch()
+if __name__ == '__main__':
+    app.run(host='0.0.0.0',port = port, debug = True)

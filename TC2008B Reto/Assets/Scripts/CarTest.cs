@@ -8,13 +8,17 @@ using UnityEngine.Networking;
 public class CarTest : MonoBehaviour
 {
     public List<Robot> agents;
-    public List<Robot> Positions;
+    public List<Vector3> Positions;
+    public float timeToUpdate = 5.0f;
+    private float timer;
+    bool started = false;
+    public GameObject CarPref;
 
     IEnumerator SendData(string data)
     {
         WWWForm form = new WWWForm();
         form.AddField("bundle", "the data");
-        string url = "http://localhost:8585";
+        string url = "http://localhost:8585/muliagentes";
         //using (UnityWebRequest www = UnityWebRequest.Post(url, form))
         using (UnityWebRequest www = UnityWebRequest.Get(url))
         {
@@ -31,10 +35,7 @@ public class CarTest : MonoBehaviour
             }
             else
             {
-                //Debug.Log(www.downloadHandler.text);    // Answer from Python
-                //Debug.Log("Form upload complete!");
-                //Data tPos = JsonUtility.FromJson<Data>(www.downloadHandler.text.Replace('\'', '\"'));
-                //Debug.Log(tPos);
+
                 List<Vector3> newPositions = new List<Vector3>();
                 string txt = www.downloadHandler.text.Replace('\'', '\"');
                 txt = txt.TrimStart('"', '{', 'd', 'a', 't', 'a', ':', '[');
@@ -42,7 +43,7 @@ public class CarTest : MonoBehaviour
                 txt = txt.TrimEnd(']', '}');
                 txt = txt + '}';
                 string[] strs = txt.Split(new string[] { "}, {" }, StringSplitOptions.None);
-                Debug.Log("strs.Length:" + strs.Length);
+
                 for (int i = 0; i < strs.Length; i++)
                 {
                     strs[i] = strs[i].Trim();
@@ -53,13 +54,28 @@ public class CarTest : MonoBehaviour
                     newPositions.Add(test);
                 }
 
-                List<Vector3> poss = new List<Vector3>();
-                for (int s = 0; s < spheres.Length; s++)
+                Positions = newPositions;
+
+                if (!started)
                 {
-                    //spheres[s].transform.localPosition = newPositions[s];
-                    poss.Add(newPositions[s]);
+                    started = true;
+                    foreach (Vector3 p in Positions)
+                    {
+                        Robot a = Instantiate(CarPref, p * 5f, Quaternion.identity, null).GetComponent<Robot>();
+                        agents.Add(a);
+                    }
                 }
-                positions.Add(poss);
+                else
+                {
+
+                    for (int i = 0; i < agents.Count; i++)
+                    {
+                        if (agents[i].target != Positions[i] * 5f)
+                        {
+                            agents[i].changeDir(Positions[i] * 5f);
+                        }
+                    }
+                }
             }
         }
 
@@ -68,6 +84,8 @@ public class CarTest : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
+        InvokeRepeating("CallServer", 2, 1);
+        /*
 #if UNITY_EDITOR
 
         Vector3 fakePos = new Vector3(3.44f, 0, -15.707f);
@@ -75,6 +93,14 @@ public class CarTest : MonoBehaviour
 
         StartCoroutine(SendData(json));
         timer = timeToUpdate;
-#endif
+#endif*/
+    }
+
+    void CallServer()
+    {
+        Vector3 fakePos = new Vector3(3.44f, 0, -15.707f);
+        string json = EditorJsonUtility.ToJson(fakePos);
+
+        StartCoroutine(SendData(json));
     }
 }
