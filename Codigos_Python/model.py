@@ -40,12 +40,13 @@ class Semaforo(Agent):
                     elif d[0] > 0:
                         self.rpos = [self.pos[0], self.pos[1]-0.5]
                         self.dir = 1
-                    elif d[1] < 0:
-                        self.rpos = [self.pos[0]-0.5, self.pos[1]]
-                        self.dir = 2
-                    elif d[1] > 0:
-                        self.rpos = [self.pos[0]+0.5, self.pos[1]]
-                        self.dir = 3
+                    elif d[0] == 0:
+                        if d[1] < 0:
+                            self.rpos = [self.pos[0]-0.5, self.pos[1]]
+                            self.dir = 2
+                        elif d[1] > 0:
+                            self.rpos = [self.pos[0]+0.5, self.pos[1]]
+                            self.dir = 3
         else:
             return False
 
@@ -189,6 +190,7 @@ class CruceModel(Model):
         self.grid = MultiGrid(width, height, True)
         self.schedule2 = RandomActivation(self)
         self.schedule = RandomActivation(self)
+        self.Calles = []
 
         dirx = 1
         diry = -1
@@ -197,6 +199,7 @@ class CruceModel(Model):
                 o = Cruce(g,self,[dirx,0],[0,diry])
                 dirx *= -1
                 self.grid.place_agent(o,(g,p))
+                self.Calles.append(o)
             diry *= -1
 
 
@@ -204,21 +207,29 @@ class CruceModel(Model):
         self.grid.place_agent(o,(0,5))
         obs1 = Calle(1000,self,[1,0])
         self.grid.place_agent(obs1, (0,4))
+        self.Calles.append(o)
+        self.Calles.append(obs1)
 
         o = Cruce(1001,self,[0,1],[0,1])
         self.grid.place_agent(o,(9,4))
         obs1 = Calle(1001,self,[-1,0])
         self.grid.place_agent(obs1, (9,5))
+        self.Calles.append(o)
+        self.Calles.append(obs1)
 
         o = Cruce(1002,self,[1,0],[1,0])
         self.grid.place_agent(o,(4,0))
         obs1 = Calle(1002,self,[0,1])
         self.grid.place_agent(obs1, (5,0))
+        self.Calles.append(o)
+        self.Calles.append(obs1)
 
         o = Cruce(1003,self,[-1,0],[-1,0])
         self.grid.place_agent(o,(5,9))
         obs1 = Calle(1003,self,[0,-1])
         self.grid.place_agent(obs1, (4,9))
+        self.Calles.append(o)
+        self.Calles.append(obs1)
 
         s1 = Semaforo(111,self,0)
         self.grid.place_agent(s1, (round((width/2)-1), round((height/2)+1)))
@@ -273,24 +284,32 @@ class CruceModel(Model):
           self.grid.place_agent(obs1, (x, round((width-1)/2)))
           obs2 = Calle(x+10,self,[-1,0])
           self.grid.place_agent(obs2, (x, round(width/2)))
+          self.Calles.append(obs2)
+          self.Calles.append(obs1)
         
         for x in range(round((width+1)/2), width-1):
           obs1 = Calle(x,self,[1,0])
           self.grid.place_agent(obs1, (x, round((width-1)/2)))
           obs2 = Calle(x+10,self,[-1,0])
           self.grid.place_agent(obs2, (x, round(width/2)))
+          self.Calles.append(obs2)
+          self.Calles.append(obs1)
 
         for y in range(1,round((height-1)/2)):
           obs1 = Calle(y,self,[0,-1])
           self.grid.place_agent(obs1, (round((height-1)/2),y))
           obs2 = Calle(y+10,self,[0,1])
           self.grid.place_agent(obs2, (round(height/2),y))
+          self.Calles.append(obs2)
+          self.Calles.append(obs1)
         
         for y in range(round((height+1)/2), height-1):
           obs1 = Calle(y,self,[0,-1])
           self.grid.place_agent(obs1, (round((height-1)/2),y))
           obs2 = Calle(y+10,self,[0,1])
           self.grid.place_agent(obs2, (round(height/2),y))
+          self.Calles.append(obs2)
+          self.Calles.append(obs1)
 
     def step(self):
         self.schedule.step()
@@ -341,12 +360,29 @@ def BoolsToJSON(g):
         posDICT.append(pos)
     return json.dumps(posDICT)
 
+def CallesToJSON(g):
+    posDICT = []
+    for p in g:
+        pos = {
+            "x" : p.pos[0],
+            "y" : -1,
+            "z" : p.pos[1]
+        }
+        posDICT.append(pos)
+    return json.dumps(posDICT)
+
 port = int(os.getenv('PORT',8585))
 
 @app.route('/')
 
 def root():
     return jsonify([{"message":"Hello"}])
+
+@app.route('/calles', methods=['GET','POST'])
+
+def calles():
+    positions = model.Calles
+    return CallesToJSON(positions)
 
 @app.route('/muliagentes', methods=['GET','POST'])
 
