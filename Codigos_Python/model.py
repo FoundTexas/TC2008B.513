@@ -12,10 +12,10 @@ import logging
 import json, os, atexit
 
 class Semaforo(Agent):
-    def __init__(self, unique_id, model,s):
+    def __init__(self, unique_id, model):
       super().__init__(unique_id, model)
       self.type = "SEMAFORO"
-      self.state = s
+      self.state = 0
       self.Yellow = True
       self.Green = False
       self.Red = False
@@ -24,8 +24,10 @@ class Semaforo(Agent):
       self.dir = 0
     
     def SetPair(self,Ne,No):
-      self.Spar = Ne
-      self.Sop = No
+        self.Spar = Ne
+        self.Sop = No
+
+        print(self.unique_id,self.pos,self.Spar.unique_id,self.Spar.pos,self.Sop.unique_id,self.Sop.pos)
     
     def CheckCoche(self):
         cellCont = self.model.grid.get_cell_list_contents((self.pos[0], self.pos[1]))
@@ -104,16 +106,43 @@ class Calle(Agent):
       self.Dir[1] = dir[1]
 
 class Cruce(Agent):
-    def __init__(self, unique_id, model, dir,dir2):
+    def __init__(self, unique_id, model):
       super().__init__(unique_id, model)
       self.type = "CRUCE"
       self.Dir = [0,0]
-      self.Dir[0] = dir[0]
-      self.Dir[1] = dir[1]
       self.Dir2 = [0,0]
-      self.Dir2[0] = dir2[0]
-      self.Dir2[1] = dir2[1]
-      print(self.Dir,self.Dir2)
+    
+    def SetConexiones(self, dir):
+        d = dir
+        if d[0] < -1:
+            d[0] =-1
+        elif d[0] > 1:
+            d[0] = 1
+
+        if d[1] < -1:
+            d[1] =-1
+        elif d[1] > 1:
+            d[1] = 1
+
+        self.Dir[0] = d[0]
+        self.Dir[1] = d[1]
+        print(self.unique_id,self.pos,"Dir",self.Dir)
+    def SetConexiones2(self, dir2):
+
+        d = dir2
+        if d[0] < -1:
+            d[0] =-1
+        elif d[0] > 1:
+            d[0] = 1
+
+        if d[1] < -1:
+            d[1] =-1
+        elif d[1] > 1:
+            d[1] = 1
+
+        self.Dir2[0] = d[0]
+        self.Dir2[1] = d[1]
+        print(self.unique_id,self.pos,"Dir2",self.Dir2)
 
 class Obstaculo(Agent):
     def __init__(self, unique_id, model):
@@ -184,133 +213,207 @@ class Coche(Agent):
 
 
 class CruceModel(Model):
-    def __init__(self, N, width, height):
+    def __init__(self, N, width, height, matrix):
         self.num_agents = N
         self.running = True
         self.grid = MultiGrid(width, height, True)
         self.schedule2 = RandomActivation(self)
         self.schedule = RandomActivation(self)
         self.Calles = []
-
-        dirx = 1
-        diry = -1
-        for g in range(round((width/2)-1),round((width/2)+1)):
-            for p in range(round((width/2)-1),round((width/2)+1)):
-                o = Cruce(g,self,[dirx,0],[0,diry])
-                dirx *= -1
-                self.grid.place_agent(o,(g,p))
-                self.Calles.append(o)
-            diry *= -1
-
-
-        o = Cruce(1000,self,[0,-1],[0,-1])
-        self.grid.place_agent(o,(0,5))
-        obs1 = Calle(1000,self,[1,0])
-        self.grid.place_agent(obs1, (0,4))
-        self.Calles.append(o)
-        self.Calles.append(obs1)
-
-        o = Cruce(1001,self,[0,1],[0,1])
-        self.grid.place_agent(o,(9,4))
-        obs1 = Calle(1001,self,[-1,0])
-        self.grid.place_agent(obs1, (9,5))
-        self.Calles.append(o)
-        self.Calles.append(obs1)
-
-        o = Cruce(1002,self,[1,0],[1,0])
-        self.grid.place_agent(o,(4,0))
-        obs1 = Calle(1002,self,[0,1])
-        self.grid.place_agent(obs1, (5,0))
-        self.Calles.append(o)
-        self.Calles.append(obs1)
-
-        o = Cruce(1003,self,[-1,0],[-1,0])
-        self.grid.place_agent(o,(5,9))
-        obs1 = Calle(1003,self,[0,-1])
-        self.grid.place_agent(obs1, (4,9))
-        self.Calles.append(o)
-        self.Calles.append(obs1)
-
-        s1 = Semaforo(111,self,0)
-        self.grid.place_agent(s1, (round((width/2)-1), round((height/2)+1)))
-        s2 = Semaforo(112,self,0)
-        self.grid.place_agent(s2, (round((width/2)), round((height/2)-2)))
-
-        s3 = Semaforo(113,self,8)
-        self.grid.place_agent(s3, (round((width/2)-2), round((height/2)-1)))
-
-        s4 = Semaforo(114,self,8)
-        self.grid.place_agent(s4, (round((width/2)+1), round((height/2))))
-        s4.SetPair(s2,s3)
-        s2.SetPair(s4,s1)
-        s3.SetPair(s1,s4)
-        s1.SetPair(s3,s2)
-
-        self.schedule2.add(s1)
-        self.schedule2.add(s2)
-        self.schedule2.add(s3)
-        self.schedule2.add(s4)
-
-        for g in range(round((width-1)/2)):
-            for p in range(round((width-1)/2)):
-                o = Obstaculo(g,self)
-                self.grid.place_agent(o,(g,p))
-
-        for g in range(round((width-1)/2)):
-            for p in range(round((width+2)/2),width):
-                o = Obstaculo(g,self)
-                self.grid.place_agent(o,(g,p))
-
-        for g in range(round((width+2)/2),width):
-            for p in range(round((width+2)/2),width):
-                o = Obstaculo(g,self)
-                self.grid.place_agent(o,(g,p))
+        self.cruces = []
+        self.semaforos = []
         
-        for g in range(round((width+2)/2),width):
-            for p in range(round((width-1)/2)):
-                o = Obstaculo(g,self)
-                self.grid.place_agent(o,(g,p))
+        for X in range(width):
+            for Y in range(height):
+                if matrix[Y][X] == ".":
+                    o = Obstaculo(Y+X*10,self)
+                    self.grid.place_agent(o,(X,(height-1)-Y))
+                elif matrix[Y][X] == "X":
+                    o = Cruce(Y+X*10,self)
+                    self.grid.place_agent(o,(X,(height-1)-Y))
+                    self.cruces.append(o)
+                    self.Calles.append(o)
 
         for i in range(self.num_agents):
-          a =  Coche(i, self)
-          self.grid.place_agent(a, (4, 4))
-          self.grid.move_to_empty(a)
-          print(a.pos)
+            a =  Coche(i, self)
+            self.grid.place_agent(a, (0, 0))
+            self.grid.move_to_empty(a)
+            self.schedule.add(a)
+
+        for X in range(width):
+            for Y in range(height):
+                if matrix[Y][X] == "1":
+                    o = Calle(Y+X*10,self,[1,0])
+                    self.grid.place_agent(o,(X,(height-1)-Y))
+                elif matrix[Y][X] == "2":
+                    o = Calle(Y+X*10,self,[-1,0])
+                    self.grid.place_agent(o,(X,(height-1)-Y))
+                elif matrix[Y][X] == "3":
+                    o = Calle(Y+X*10,self,[0,1])
+                    self.grid.place_agent(o,(X,(height-1)-Y))
+                elif matrix[Y][X] == "4":
+                    o = Calle(Y+X*10,self,[0,-1])
+                    self.grid.place_agent(o,(X,(height-1)-Y))
+                elif matrix[Y][X] == "a":
+                    s = Semaforo(Y+X*10,self)
+                    self.grid.place_agent(s,(X,(height-1)-Y))
+                    self.semaforos.append(s)
+                    self.schedule2.add(s)
+                    o = Calle(Y+X*100,self,[1,0])
+                    self.grid.place_agent(o,(X,(height-1)-Y))
+                elif matrix[Y][X] == "d":
+                    s = Semaforo(Y+X*10,self)
+                    self.grid.place_agent(s,(X,(height-1)-Y))
+                    self.semaforos.append(s)
+                    self.schedule2.add(s)
+                    o = Calle(Y+X*100,self,[-1,0])
+                    self.grid.place_agent(o,(X,(height-1)-Y))
+                elif matrix[Y][X] == "w":
+                    s = Semaforo(Y+X*10,self)
+                    self.grid.place_agent(s,(X,(height-1)-Y))
+                    self.semaforos.append(s)
+                    self.schedule2.add(s)
+                    o = Calle(Y+X*100,self,[0,1])
+                    self.grid.place_agent(o,(X,(height-1)-Y))
+                elif matrix[Y][X] == "s":
+                    s = Semaforo(Y+X*10,self)
+                    self.grid.place_agent(s,(X,(height-1)-Y))
+                    self.semaforos.append(s)
+                    self.schedule2.add(s)
+                    o = Calle(Y+X*100,self,[0,-1])
+                    self.grid.place_agent(o,(X,(height-1)-Y))
+                self.Calles.append(o)
+
+        print("Cruces")
+        for c in range(len(self.cruces)):
+            g = self.nextCellCont(self.cruces[c],1,0)
+            g = self.nextCellCont(self.cruces[c],0,1)
+        print("Semaforos")
+        for s in range(len(self.semaforos)):
+            self.CheckSemaforo(self.semaforos[s])
+    
+    def AssignSemaforos(self,a,X,Y):
+        tmp = a
+        tmp2 = a
+        if X != 0:
+            if X > 0:
+                x = X + 2
+                y = Y + 1
+                print("X pos")
+            elif X < 0:
+                x = X - 2
+                y = Y - 1
+                print("X neg")
+            cellCont = self.grid.get_cell_list_contents(a.model.grid.torus_adj((a.pos[0]+x, a.pos[1]+y)))
+            if len(cellCont) > 0:
+                for index in range(len(cellCont)):
+                    if cellCont[index].type == "SEMAFORO":
+                        tmp2 = cellCont[index]
+            if X > 0:
+                x = X + 1
+                y = Y -1
+                print("X pos")
+            elif X < 0:
+                x = X - 1
+                y = Y + 1
+                print("X neg")
+            cellCont = self.grid.get_cell_list_contents(a.model.grid.torus_adj((a.pos[0]+x, a.pos[1]+y)))
+            if len(cellCont) > 0:
+                for index in range(len(cellCont)):
+                    if cellCont[index].type == "SEMAFORO":
+                        tmp = cellCont[index]
+                        
+        elif Y != 0:
+            if Y > 0:
+                x = X - 1
+                y = Y + 2
+                print("Y pos")
+            elif Y < 0:
+                x = X + 1
+                y = Y - 2
+                print("Y neg")
+            cellCont = self.grid.get_cell_list_contents(a.model.grid.torus_adj((a.pos[0]+x, a.pos[1]+y)))
+            if len(cellCont) > 0:
+                for index in range(len(cellCont)):
+                    if cellCont[index].type == "SEMAFORO":
+                        tmp2 = cellCont[index]
+            if Y > 0:
+                x = X + 1
+                y = Y + 1
+                print("Y pos")
+            elif Y < 0:
+                x = X - 1
+                y = Y - 1
+                print("Y neg")
+            cellCont = self.grid.get_cell_list_contents(a.model.grid.torus_adj((a.pos[0]+x, a.pos[1]+y)))
+            if len(cellCont) > 0:
+                for index in range(len(cellCont)):
+                    if cellCont[index].type == "SEMAFORO":
+                        tmp = cellCont[index]
+      
+        a.SetPair(tmp,tmp2)
+
+    def CheckSemaforo(self,a):
+      cellCont = self.grid.get_cell_list_contents(a.model.grid.torus_adj((a.pos[0], a.pos[1])))
+      if len(cellCont) > 0:
+        for index in range(len(cellCont)):
+          if cellCont[index].type == "CALLE":
+            dir = cellCont[index].Dir
+            print(dir)
+            self.AssignSemaforos(a,dir[0],dir[1])
+
+    def nextCellCont(self,a,X,Y):
+        cellCont = self.grid.get_cell_list_contents(a.model.grid.torus_adj((a.pos[0]+X, a.pos[1]+Y)))
+        x = X
+        y = Y
+
+        if x < -1:
+            x =-1
+        elif x > 1:
+            x = 1
+
+        if y < -1:
+            y =-1
+        elif y > 1:
+            y = 1
+        
+        print(a.pos, [x,y])
             
-          self.schedule.add(a)
-        
-        for x in range(1,round((width-1)/2)):
-          obs1 = Calle(x,self,[1,0])
-          self.grid.place_agent(obs1, (x, round((width-1)/2)))
-          obs2 = Calle(x+10,self,[-1,0])
-          self.grid.place_agent(obs2, (x, round(width/2)))
-          self.Calles.append(obs2)
-          self.Calles.append(obs1)
-        
-        for x in range(round((width+1)/2), width-1):
-          obs1 = Calle(x,self,[1,0])
-          self.grid.place_agent(obs1, (x, round((width-1)/2)))
-          obs2 = Calle(x+10,self,[-1,0])
-          self.grid.place_agent(obs2, (x, round(width/2)))
-          self.Calles.append(obs2)
-          self.Calles.append(obs1)
+        if len(cellCont) > 0:
+            for index in range(len(cellCont)):
+                if cellCont[index].type == "CALLE":
+                    if cellCont[index].Dir[0] == x and cellCont[index].Dir[1] == y:
+                        if a.Dir[0] == 0 and a.Dir[1] == 0:
+                            a.SetConexiones([x,y])
+                        elif a.Dir2[0] == 0 and a.Dir2[1] == 0:
+                            a.SetConexiones2([x,y])
+                        return False
+                    else:
+                        x *= -1
+                        y *= -1
+                        if a.Dir[0] == 0 and a.Dir[1] == 0:
+                            a.SetConexiones([x,y])
+                        elif a.Dir2[0] == 0 and a.Dir2[1] == 0:
+                            a.SetConexiones2([x,y])
+                        return True
 
-        for y in range(1,round((height-1)/2)):
-          obs1 = Calle(y,self,[0,-1])
-          self.grid.place_agent(obs1, (round((height-1)/2),y))
-          obs2 = Calle(y+10,self,[0,1])
-          self.grid.place_agent(obs2, (round(height/2),y))
-          self.Calles.append(obs2)
-          self.Calles.append(obs1)
-        
-        for y in range(round((height+1)/2), height-1):
-          obs1 = Calle(y,self,[0,-1])
-          self.grid.place_agent(obs1, (round((height-1)/2),y))
-          obs2 = Calle(y+10,self,[0,1])
-          self.grid.place_agent(obs2, (round(height/2),y))
-          self.Calles.append(obs2)
-          self.Calles.append(obs1)
+                elif cellCont[index].type == "CRUCE":
+                    if Y == 0:
+                        self.nextCellCont(a,X+X,Y)
+                    elif X == 0:
+                        self.nextCellCont(a,X,Y+Y)
 
+                elif cellCont[index].type == "OBSTACULO":
+                    x *= -1
+                    y *= -1
+                    if a.Dir[0] == 0 and a.Dir[1] == 0:
+                        a.SetConexiones([x,y])
+                    elif a.Dir2[0] == 0 and a.Dir2[1] == 0:
+                        a.SetConexiones2([x,y])
+                    return True
+
+            return True
+    
     def step(self):
         self.schedule.step()
 
@@ -331,9 +434,34 @@ class CruceModel(Model):
         return ps
 
 
+cwd = os.getcwd()
+files = os.listdir(cwd) 
+print(files)
+
+def f2m(s):
+    file1 = open(s, 'r')
+    Lines = file1.readlines()
+    file1.close()
+    matrix = []
+
+    for i in range (len(Lines)):
+        matrix.append(s2v(Lines[i]))
+
+    return matrix
+
+def s2v(s):
+    vector = []
+    for i in s:
+        if i != ' ' and i != '\n':
+        #b = int(i)
+            vector.append(i)
+    return vector
+
+matrix = f2m('inputs.txt')
+
 app = Flask(__name__, static_url_path = '')
 
-model = CruceModel(4,10,10)
+model = CruceModel(20,len(matrix[0]),len(matrix),matrix)
 
 def positionsToJSON(ps):
     posDICT = []
