@@ -3,66 +3,78 @@
 # Sergio. Julio 2021
 
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from flask import Flask, render_template, request, jsonify
 import logging
-import json
+import json, os, atexit
 
 import numpy as np
 from model import CruceModel
+
+app = Flask(__name__, static_url_path = '')
+
+model = CruceModel(4,10,10)
 
 def positionsToJSON(ps):
     posDICT = []
     for p in ps:
         pos = {
             "x" : p[0],
-            "z" : p[1],
-            "y" : p[2]
+            "y" : p[1],
+            "z" : p[2]
         }
         posDICT.append(pos)
     return json.dumps(posDICT)
 
+def BoolsToJSON(g):
+    posDICT = []
+    for p in g:
+        pos = {
+            "Green" : p.Green,
+            "Yellow" : p.Yellow,
+            "Red" : p.Red,
+            "Posx" : p.rpos[0],
+            "Posz" : p.rpos[1],
+            "dir" : p.dir
+        }
+        posDICT.append(pos)
+    return json.dumps(posDICT)
 
-class Server(BaseHTTPRequestHandler):
+def CallesToJSON(g):
+    posDICT = []
+    for p in g:
+        pos = {
+            "x" : p.pos[0],
+            "y" : -1,
+            "z" : p.pos[1]
+        }
+        posDICT.append(pos)
+    return json.dumps(posDICT)
+
+port = int(os.getenv('PORT',8585))
+
+@app.route('/')
+
+def root():
+    return jsonify([{"message":"Hello"}])
+
+@app.route('/calles', methods=['GET','POST'])
+
+def calles():
+    positions = model.Calles
+    return CallesToJSON(positions)
+
+@app.route('/muliagentes', methods=['GET','POST'])
+
+def multiagentes():
+    positions = model.step()
+    return positionsToJSON(positions)
+
+@app.route('/semaforos', methods=['GET','POST'])
+
+def semaforos():
+    lights = model.step2()
+    return BoolsToJSON(lights)
     
-    def _set_response(self):
-        self.send_response(200)
-        self.send_header('Content-type', 'text/html')
-        self.end_headers()
-        
-    def do_GET(self):
-        logging.info("GET request,\nPath: %s\nHeaders:\n%s\n", str(self.path), str(self.headers))
-        positions = updatePositions()
-        self._set_response()
-        resp = "{\"data\":" + positionsToJSON(positions) + "}"
-        self.wfile.write(resp.encode('utf-8'))
-
-    def do_POST(self):
-        content_length = int(self.headers['Content-Length'])
-        post_data = json.loads(self.rfile.read(content_length))
-        logging.info("POST request,\nPath: %s\nHeaders:\n%s\n\nBody:\n%s\n",
-                     str(self.path), str(self.headers), json.dumps(post_data))
-        
-        positions = updatePositions()
-        self._set_response()
-        resp = "{\"data\":" + positionsToJSON(positions) + "}"
-        self.wfile.write(resp.encode('utf-8'))
-
-
-def run(server_class=HTTPServer, handler_class=Server, port=8585):
-    logging.basicConfig(level=logging.INFO)
-    server_address = ('', port)
-    httpd = server_class(server_address, handler_class)
-    logging.info("Starting httpd...\n") # HTTPD is HTTP Daemon!
-    try:
-        httpd.serve_forever()
-    except KeyboardInterrupt:   # CTRL+C stops the server
-        pass
-    httpd.server_close()
-    logging.info("Stopping httpd...\n")
-
+    
 if __name__ == '__main__':
-    from sys import argv
-    
-    if len(argv) == 2:
-        run(port=int(argv[1]))
-    else:
-        run()
+    app.run(host='0.0.0.0',port = port, debug = True)

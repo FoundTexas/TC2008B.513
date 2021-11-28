@@ -6,11 +6,6 @@ from mesa.visualization.ModularVisualization import ModularServer
 from mesa.visualization.UserParam import UserSettableParameter
 import random
 
-from http.server import BaseHTTPRequestHandler, HTTPServer
-from flask import Flask, render_template, request, jsonify
-import logging
-import json, os, atexit
-
 class Semaforo(Agent):
     def __init__(self, unique_id, model):
       super().__init__(unique_id, model)
@@ -22,13 +17,13 @@ class Semaforo(Agent):
       self.Started = False
       self.rpos = [0.0,0.0]
       self.dir = 0
-    
+
     def SetPair(self,Ne,No):
         self.Spar = Ne
         self.Sop = No
 
         print(self.unique_id,self.pos,self.Spar.unique_id,self.Spar.pos,self.Sop.unique_id,self.Sop.pos)
-    
+
     def CheckCoche(self):
         cellCont = self.model.grid.get_cell_list_contents((self.pos[0], self.pos[1]))
         d = [0,0]
@@ -59,7 +54,7 @@ class Semaforo(Agent):
                     self.Sop.Go(8)
                     self.Sop.Spar.Go(0)
                     self.Spar.Go(0)
-                    
+
                     self.Go(8)
                     return True
         else:
@@ -67,7 +62,7 @@ class Semaforo(Agent):
 
         return False
 
-    
+
     def Go(self, t):
         if self.Started == False:
             self.Started = True
@@ -93,7 +88,7 @@ class Semaforo(Agent):
                 self.state = 8
         if self.Started == False:
             self.Started = self.CheckCoche()
-    
+
     def step(self):
         self.Lights()
 
@@ -111,7 +106,7 @@ class Cruce(Agent):
       self.type = "CRUCE"
       self.Dir = [0,0]
       self.Dir2 = [0,0]
-    
+
     def SetConexiones(self, dir):
         d = dir
         if d[0] < -1:
@@ -178,9 +173,9 @@ class Coche(Agent):
                             return cellCont[index].Dir
                         if rng1 == 1:
                             return cellCont[index].Dir2
-        
+
         return self.Dir
-    
+
     def Obstacle(self, cellCont):
         if len(cellCont) > 0:
             for index in range(len(cellCont)):
@@ -191,7 +186,7 @@ class Coche(Agent):
                 elif cellCont[index].type ==  "SEMAFORO":
                     if cellCont[index].Red == True:
                         return True
-                   
+
         return False
 
     def move(self):
@@ -222,7 +217,7 @@ class CruceModel(Model):
         self.Calles = []
         self.cruces = []
         self.semaforos = []
-        
+
         for X in range(width):
             for Y in range(height):
                 if matrix[Y][X] == ".":
@@ -291,7 +286,7 @@ class CruceModel(Model):
         print("Semaforos")
         for s in range(len(self.semaforos)):
             self.CheckSemaforo(self.semaforos[s])
-    
+
     def AssignSemaforos(self,a,X,Y):
         tmp = a
         tmp2 = a
@@ -322,7 +317,7 @@ class CruceModel(Model):
                 for index in range(len(cellCont)):
                     if cellCont[index].type == "SEMAFORO":
                         tmp = cellCont[index]
-                        
+
         elif Y != 0:
             if Y > 0:
                 x = X - 1
@@ -350,7 +345,7 @@ class CruceModel(Model):
                 for index in range(len(cellCont)):
                     if cellCont[index].type == "SEMAFORO":
                         tmp = cellCont[index]
-      
+
         a.SetPair(tmp,tmp2)
 
     def CheckSemaforo(self,a):
@@ -376,9 +371,9 @@ class CruceModel(Model):
             y =-1
         elif y > 1:
             y = 1
-        
+
         print(a.pos, [x,y])
-            
+
         if len(cellCont) > 0:
             for index in range(len(cellCont)):
                 if cellCont[index].type == "CALLE":
@@ -413,7 +408,7 @@ class CruceModel(Model):
                     return True
 
             return True
-    
+
     def step(self):
         self.schedule.step()
 
@@ -435,7 +430,7 @@ class CruceModel(Model):
 
 
 cwd = os.getcwd()
-files = os.listdir(cwd) 
+files = os.listdir(cwd)
 print(files)
 
 def f2m(s):
@@ -523,7 +518,7 @@ def multiagentes():
 def semaforos():
     lights = model.step2()
     return BoolsToJSON(lights)
-    
-    
+
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0',port = port, debug = True)
