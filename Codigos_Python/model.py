@@ -296,11 +296,11 @@ class CruceModel(Model):
         tmp2 = a
         if X != 0:
             if X > 0:
-                x = X + 1
+                x = X + 2
                 y = Y + 1
                 print("X pos")
             elif X < 0:
-                x = X - 1
+                x = X - 2
                 y = Y - 1
                 print("X neg")
             cellCont = self.grid.get_cell_list_contents(a.model.grid.torus_adj((a.pos[0]+x, a.pos[1]+y)))
@@ -309,18 +309,45 @@ class CruceModel(Model):
                     if cellCont[index].type == "SEMAFORO":
                         tmp2 = cellCont[index]
             if X > 0:
-                x = X + 1
+                x = X
                 y = Y -1
                 print("X pos")
+                cellCont = self.grid.get_cell_list_contents(a.model.grid.torus_adj((a.pos[0]+x, a.pos[1]+y)))
+                b = True
+                if len(cellCont) > 0:
+                    for index in range(len(cellCont)):
+                        if cellCont[index].type == "SEMAFORO":
+                            tmp = cellCont[index]
+                            b = False
+                if b == True:
+                    x = X +1
+                    y = Y -1
+                    print("X pos")
+                    cellCont = self.grid.get_cell_list_contents(a.model.grid.torus_adj((a.pos[0]+x, a.pos[1]+y)))
+                    if len(cellCont) > 0:
+                        for index in range(len(cellCont)):
+                            if cellCont[index].type == "SEMAFORO":
+                                tmp = cellCont[index]
             elif X < 0:
-                x = X - 1
+                x = X
                 y = Y + 1
-                print("X neg")
-            cellCont = self.grid.get_cell_list_contents(a.model.grid.torus_adj((a.pos[0]+x, a.pos[1]+y)))
-            if len(cellCont) > 0:
-                for index in range(len(cellCont)):
-                    if cellCont[index].type == "SEMAFORO":
-                        tmp = cellCont[index]
+                print("X pos")
+                cellCont = self.grid.get_cell_list_contents(a.model.grid.torus_adj((a.pos[0]+x, a.pos[1]+y)))
+                b = True
+                if len(cellCont) > 0:
+                    for index in range(len(cellCont)):
+                        if cellCont[index].type == "SEMAFORO":
+                            tmp = cellCont[index]
+                            b = False
+                if b == True:
+                    x = X - 1
+                    y = Y + 1
+                    print("X pos")
+                    cellCont = self.grid.get_cell_list_contents(a.model.grid.torus_adj((a.pos[0]+x, a.pos[1]+y)))
+                    if len(cellCont) > 0:
+                        for index in range(len(cellCont)):
+                            if cellCont[index].type == "SEMAFORO":
+                                tmp = cellCont[index]
 
         elif Y != 0:
             if Y > 0:
@@ -337,18 +364,45 @@ class CruceModel(Model):
                     if cellCont[index].type == "SEMAFORO":
                         tmp2 = cellCont[index]
             if Y > 0:
-                x = X + 1
-                y = Y + 1
-                print("Y pos")
-            elif Y < 0:
                 x = X - 1
-                y = Y - 1
-                print("Y neg")
-            cellCont = self.grid.get_cell_list_contents(a.model.grid.torus_adj((a.pos[0]+x, a.pos[1]+y)))
-            if len(cellCont) > 0:
-                for index in range(len(cellCont)):
-                    if cellCont[index].type == "SEMAFORO":
-                        tmp = cellCont[index]
+                y = Y 
+                print("Y pos")
+                cellCont = self.grid.get_cell_list_contents(a.model.grid.torus_adj((a.pos[0]+x, a.pos[1]+y)))
+                b = True
+                if len(cellCont) > 0:
+                    for index in range(len(cellCont)):
+                        if cellCont[index].type == "SEMAFORO":
+                            tmp = cellCont[index]
+                            b = False
+                if b == True:
+                    x = X - 2
+                    y = Y
+                    print("Y pos")
+                    cellCont = self.grid.get_cell_list_contents(a.model.grid.torus_adj((a.pos[0]+x, a.pos[1]+y)))
+                    if len(cellCont) > 0:
+                        for index in range(len(cellCont)):
+                            if cellCont[index].type == "SEMAFORO":
+                                tmp = cellCont[index]
+            elif Y < 0:
+                x = X + 1
+                y = Y
+                print("Y pos")
+                cellCont = self.grid.get_cell_list_contents(a.model.grid.torus_adj((a.pos[0]+x, a.pos[1]+y)))
+                b = True
+                if len(cellCont) > 0:
+                    for index in range(len(cellCont)):
+                        if cellCont[index].type == "SEMAFORO":
+                            tmp = cellCont[index]
+                            b = False
+                if b == True:
+                    x = X + 2
+                    y = Y
+                    print("Y pos")
+                    cellCont = self.grid.get_cell_list_contents(a.model.grid.torus_adj((a.pos[0]+x, a.pos[1]+y)))
+                    if len(cellCont) > 0:
+                        for index in range(len(cellCont)):
+                            if cellCont[index].type == "SEMAFORO":
+                                tmp = cellCont[index]
 
         a.SetPair(tmp,tmp2)
 
