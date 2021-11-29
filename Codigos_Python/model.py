@@ -6,6 +6,10 @@ from mesa.visualization.ModularVisualization import ModularServer
 from mesa.visualization.UserParam import UserSettableParameter
 import random
 
+from flask import Flask, render_template, request, jsonify
+import logging
+import json, os, atexit
+
 class Semaforo(Agent):
     def __init__(self, unique_id, model):
       super().__init__(unique_id, model)
@@ -292,11 +296,11 @@ class CruceModel(Model):
         tmp2 = a
         if X != 0:
             if X > 0:
-                x = X + 2
+                x = X + 1
                 y = Y + 1
                 print("X pos")
             elif X < 0:
-                x = X - 2
+                x = X - 1
                 y = Y - 1
                 print("X neg")
             cellCont = self.grid.get_cell_list_contents(a.model.grid.torus_adj((a.pos[0]+x, a.pos[1]+y)))
