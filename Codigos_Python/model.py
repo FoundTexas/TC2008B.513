@@ -10,6 +10,8 @@ from flask import Flask, render_template, request, jsonify
 import logging
 import json, os, atexit
 
+from dijktra import Graph
+
 class Semaforo(Agent):
     def __init__(self, unique_id, model):
       super().__init__(unique_id, model)
@@ -55,14 +57,14 @@ class Semaforo(Agent):
         if len(cellCont) > 0:
             for index in range(len(cellCont)):
                 if cellCont[index].type == "COCHE":
-                    self.Sop.Go(8)
-                    self.Sop.Spar.Go(0)
-                    self.Spar.Go(0)
-                    self.Go(8)
-                    return True
+                    b = self.Sop.Go(8)
+                    b =self.Sop.Spar.Go(0)
+                    b = self.Spar.Go(0)
+                    b = self.Go(8)
+                    return b
         else:
             return False
-
+            
     def Go(self, t):
         self.Started = True
         self.state = t
@@ -107,22 +109,37 @@ class Cruce(Agent):
       self.Dir = [0,0]
       self.Dir2 = [0,0]
 
-    def GetConexion(self,dir):
-        print ("dir:",dir)
+    def GetConexion(self,dir,i):
+        print ("dir:",dir,i)
         cellCont = self.model.grid.get_cell_list_contents(self.model.grid.torus_adj((self.pos[0]+dir[0], self.pos[1]+dir[1])))
         if len(cellCont) > 0:
             for index in range(len(cellCont)):
                 tmp = [0,0]
                 if cellCont[index].type == "CALLE":
                     tmp = cellCont[index].Dir
-                    print(tmp)
-                    tmp[0] += tmp[0]
-                    tmp[1] += tmp[1]
-                    print (tmp)
-                    return self.GetConexion(tmp)
+                    dir[0] += tmp[0]
+                    dir[1] += tmp[1]
+                    i += 1
+                    return self.GetConexion(dir,i)
                 elif cellCont[index].type == "CRUCE":
-                    return cellCont[index]
-        return self
+                    return cellCont[index],i
+        return self,i
+    
+    def GetConexion2(self,dir,i):
+        print ("dir:",dir,i)
+        cellCont = self.model.grid.get_cell_list_contents(self.model.grid.torus_adj((self.pos[0]+dir[0], self.pos[1]+dir[1])))
+        if len(cellCont) > 0:
+            for index in range(len(cellCont)):
+                tmp = [0,0]
+                if cellCont[index].type == "CALLE":
+                    tmp = cellCont[index].Dir
+                    dir[0] += tmp[0]
+                    dir[1] += tmp[1]
+                    i += 1
+                    return self.GetConexion2(dir,i)
+                elif cellCont[index].type == "CRUCE":
+                    return cellCont[index],i
+        return self,i
 
     def SetConexiones(self, dir):
         d = dir
@@ -139,9 +156,9 @@ class Cruce(Agent):
         self.Dir[0] = d[0]
         self.Dir[1] = d[1]
 
-        print(self.unique_id,self.pos,"Dir",self.Dir)
-        self.conexion = self.GetConexion(self.Dir)
-        print("Conexion 1:",self.conexion.pos)
+        print(self.unique_id,self.pos,"Dir",d)
+        self.conexion,self.conW = self.GetConexion2(d,0)
+        print("Conexion 1:",self.conexion.pos, self.conW)
         
     def SetConexiones2(self, dir2):
         d = dir2
@@ -158,9 +175,9 @@ class Cruce(Agent):
         self.Dir2[0] = d[0]
         self.Dir2[1] = d[1]
 
-        print(self.unique_id,self.pos,"Dir2",self.Dir2)
-        self.conexion2 = self.GetConexion(self.Dir2)
-        print("Conexion 2:",self.conexion2.pos)
+        print(self.unique_id,self.pos,"Dir2",d)
+        self.conexion2,self.conW2 = self.GetConexion(d,0)
+        print("Conexion 2:",self.conexion2.pos, self.conW2)
 
 class Obstaculo(Agent):
     def __init__(self, unique_id, model):
@@ -306,6 +323,29 @@ class CruceModel(Model):
         for c in range(len(self.cruces)):
             g = self.nextCellCont(self.cruces[c],1,0)
             g = self.nextCellCont(self.cruces[c],0,1)
+
+        print("Matriz Cruces")
+        self.matrizD = []
+        for x in range(len(self.cruces)):
+            tmp = []
+            for c in range(len(self.cruces)):
+                if self.cruces[c].unique_id == self.cruces[x].conexion.unique_id:
+                    tmp.append(self.cruces[x].conW)
+                elif self.cruces[c].unique_id == self.cruces[x].conexion2.unique_id:
+                    tmp.append(self.cruces[x].conW2)
+                else:
+                    tmp.append(0)
+            self.matrizD.append(tmp)
+        for x in range(len(self.matrizD)):
+            print(self.cruces[x].unique_id,self.cruces[x].pos, self.matrizD[x])
+        
+        print("Dijtra:")
+
+        dij = Graph(len(self.matrizD))
+        dij.graph = self.matrizD
+
+        dij.dijkstra(0)
+
         print("Semaforos")
         for s in range(len(self.semaforos)):
             self.CheckSemaforo(self.semaforos[s])
