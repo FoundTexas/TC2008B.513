@@ -58,19 +58,15 @@ class Semaforo(Agent):
                     self.Sop.Go(8)
                     self.Sop.Spar.Go(0)
                     self.Spar.Go(0)
-
                     self.Go(8)
                     return True
         else:
             return False
 
-        return False
-
-
     def Go(self, t):
-        if self.Started == False:
-            self.Started = True
-            self.state = t
+        self.Started = True
+        self.state = t
+        return True
 
     def Lights(self):
         if self.Started == True:
@@ -111,6 +107,23 @@ class Cruce(Agent):
       self.Dir = [0,0]
       self.Dir2 = [0,0]
 
+    def GetConexion(self,dir):
+        print ("dir:",dir)
+        cellCont = self.model.grid.get_cell_list_contents(self.model.grid.torus_adj((self.pos[0]+dir[0], self.pos[1]+dir[1])))
+        if len(cellCont) > 0:
+            for index in range(len(cellCont)):
+                tmp = [0,0]
+                if cellCont[index].type == "CALLE":
+                    tmp = cellCont[index].Dir
+                    print(tmp)
+                    tmp[0] += tmp[0]
+                    tmp[1] += tmp[1]
+                    print (tmp)
+                    return self.GetConexion(tmp)
+                elif cellCont[index].type == "CRUCE":
+                    return cellCont[index]
+        return self
+
     def SetConexiones(self, dir):
         d = dir
         if d[0] < -1:
@@ -125,9 +138,12 @@ class Cruce(Agent):
 
         self.Dir[0] = d[0]
         self.Dir[1] = d[1]
-        print(self.unique_id,self.pos,"Dir",self.Dir)
-    def SetConexiones2(self, dir2):
 
+        print(self.unique_id,self.pos,"Dir",self.Dir)
+        self.conexion = self.GetConexion(self.Dir)
+        print("Conexion 1:",self.conexion.pos)
+        
+    def SetConexiones2(self, dir2):
         d = dir2
         if d[0] < -1:
             d[0] =-1
@@ -141,7 +157,10 @@ class Cruce(Agent):
 
         self.Dir2[0] = d[0]
         self.Dir2[1] = d[1]
+
         print(self.unique_id,self.pos,"Dir2",self.Dir2)
+        self.conexion2 = self.GetConexion(self.Dir2)
+        print("Conexion 2:",self.conexion2.pos)
 
 class Obstaculo(Agent):
     def __init__(self, unique_id, model):
@@ -311,7 +330,6 @@ class CruceModel(Model):
             if X > 0:
                 x = X
                 y = Y -1
-                print("X pos")
                 cellCont = self.grid.get_cell_list_contents(a.model.grid.torus_adj((a.pos[0]+x, a.pos[1]+y)))
                 b = True
                 if len(cellCont) > 0:
@@ -322,7 +340,6 @@ class CruceModel(Model):
                 if b == True:
                     x = X +1
                     y = Y -1
-                    print("X pos")
                     cellCont = self.grid.get_cell_list_contents(a.model.grid.torus_adj((a.pos[0]+x, a.pos[1]+y)))
                     if len(cellCont) > 0:
                         for index in range(len(cellCont)):
@@ -331,7 +348,6 @@ class CruceModel(Model):
             elif X < 0:
                 x = X
                 y = Y + 1
-                print("X pos")
                 cellCont = self.grid.get_cell_list_contents(a.model.grid.torus_adj((a.pos[0]+x, a.pos[1]+y)))
                 b = True
                 if len(cellCont) > 0:
@@ -342,7 +358,6 @@ class CruceModel(Model):
                 if b == True:
                     x = X - 1
                     y = Y + 1
-                    print("X pos")
                     cellCont = self.grid.get_cell_list_contents(a.model.grid.torus_adj((a.pos[0]+x, a.pos[1]+y)))
                     if len(cellCont) > 0:
                         for index in range(len(cellCont)):
@@ -366,7 +381,6 @@ class CruceModel(Model):
             if Y > 0:
                 x = X - 1
                 y = Y 
-                print("Y pos")
                 cellCont = self.grid.get_cell_list_contents(a.model.grid.torus_adj((a.pos[0]+x, a.pos[1]+y)))
                 b = True
                 if len(cellCont) > 0:
@@ -377,7 +391,6 @@ class CruceModel(Model):
                 if b == True:
                     x = X - 2
                     y = Y
-                    print("Y pos")
                     cellCont = self.grid.get_cell_list_contents(a.model.grid.torus_adj((a.pos[0]+x, a.pos[1]+y)))
                     if len(cellCont) > 0:
                         for index in range(len(cellCont)):
@@ -386,7 +399,6 @@ class CruceModel(Model):
             elif Y < 0:
                 x = X + 1
                 y = Y
-                print("Y pos")
                 cellCont = self.grid.get_cell_list_contents(a.model.grid.torus_adj((a.pos[0]+x, a.pos[1]+y)))
                 b = True
                 if len(cellCont) > 0:
@@ -397,7 +409,6 @@ class CruceModel(Model):
                 if b == True:
                     x = X + 2
                     y = Y
-                    print("Y pos")
                     cellCont = self.grid.get_cell_list_contents(a.model.grid.torus_adj((a.pos[0]+x, a.pos[1]+y)))
                     if len(cellCont) > 0:
                         for index in range(len(cellCont)):
@@ -412,7 +423,6 @@ class CruceModel(Model):
         for index in range(len(cellCont)):
           if cellCont[index].type == "CALLE":
             dir = cellCont[index].Dir
-            print(dir)
             self.AssignSemaforos(a,dir[0],dir[1])
 
     def nextCellCont(self,a,X,Y):
@@ -429,8 +439,6 @@ class CruceModel(Model):
             y =-1
         elif y > 1:
             y = 1
-
-        print(a.pos, [x,y])
 
         if len(cellCont) > 0:
             for index in range(len(cellCont)):
