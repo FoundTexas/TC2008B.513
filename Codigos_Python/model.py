@@ -28,6 +28,27 @@ class Semaforo(Agent):
         self.Spar = Ne
         self.Sop = No
 
+        cellCont = self.model.grid.get_cell_list_contents((self.pos[0], self.pos[1]))
+        d = [0,0]
+        if len(cellCont) > 0:
+            for index in range(len(cellCont)):
+                if cellCont[index].type == "CALLE":
+                    d = cellCont[index].Dir
+                    if d[0] < 0:
+                        self.rpos = [self.pos[0], self.pos[1]+0.5]
+                        self.dir = 0
+                    elif d[0] > 0:
+                        self.rpos = [self.pos[0], self.pos[1]-0.5]
+                        self.dir = 1
+                    elif d[0] == 0:
+                        if d[1] < 0:
+                            self.rpos = [self.pos[0]-0.5, self.pos[1]]
+                            self.dir = 2
+                        elif d[1] > 0:
+                            self.rpos = [self.pos[0]+0.5, self.pos[1]]
+                            self.dir = 3
+
+
         print(self.unique_id,self.pos,self.Spar.unique_id,self.Spar.pos,self.Sop.unique_id,self.Sop.pos)
 
     def CheckCoche(self):
@@ -50,25 +71,21 @@ class Semaforo(Agent):
                         elif d[1] > 0:
                             self.rpos = [self.pos[0]+0.5, self.pos[1]]
                             self.dir = 3
-        else:
-            return False
 
         cellCont = self.model.grid.get_cell_list_contents(self.model.grid.torus_adj((self.pos[0]-d[0], self.pos[1]-d[1])))
         if len(cellCont) > 0:
             for index in range(len(cellCont)):
                 if cellCont[index].type == "COCHE":
-                    b = self.Sop.Go(8)
-                    b =self.Sop.Spar.Go(0)
-                    b = self.Spar.Go(0)
-                    b = self.Go(8)
-                    return b
-        else:
-            return False
+                    self.Sop.Go(8)
+                    self.Sop.Spar.Go(0)
+                    self.Spar.Go(0)
+                    self.Go(8)
+                    return True
+        return False
             
     def Go(self, t):
         self.Started = True
         self.state = t
-        return True
 
     def Lights(self):
         if self.Started == True:

@@ -81,13 +81,13 @@ public class CarTest : MonoBehaviour
                         if (b.b)
                         {
 
-                            Robot a = Instantiate(CarPref2, pos * 5f, Quaternion.identity, null).GetComponent<Robot>();
+                            Robot a = Instantiate(CarPref, pos * 5f, Quaternion.identity, null).GetComponent<Robot>();
                             agents.Add(a);
                         }
                         else if (b.b == false)
                         {
 
-                            Robot a = Instantiate(CarPref, pos * 5f, Quaternion.identity, null).GetComponent<Robot>();
+                            Robot a = Instantiate(CarPref2, pos * 5f, Quaternion.identity, null).GetComponent<Robot>();
                             agents.Add(a);
                         }
                     }
