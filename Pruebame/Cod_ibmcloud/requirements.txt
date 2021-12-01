@@ -1,2 +1,3 @@
 Flask>=1.0.0
 mesa
+stata_setup

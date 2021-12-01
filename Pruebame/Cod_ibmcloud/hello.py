@@ -30,7 +30,7 @@ def s2v(s):
 
 matrix = f2m('inputs.txt')
 
-model = CruceModel(20,len(matrix[0]),len(matrix),matrix)
+model = CruceModel(30,len(matrix[0]),len(matrix),matrix)
 
 def positionsToJSON(ps,pb):
     posDICT = []
@@ -70,6 +70,7 @@ def CallesToJSON(g):
     return json.dumps(posDICT)
 
 
+
 # On IBM Cloud Cloud Foundry, get the port number from the environment variable PORT
 # When running this app on the local machine, default the port to 8000
 port = int(os.getenv('PORT', 8000))
@@ -97,6 +98,17 @@ def multiagentes():
 def semaforos():
     lights = model.step2()
     return BoolsToJSON(lights)
+
+@app.route('/banderas', methods=['GET','POST'])
+
+def banderas():
+    p = model.mc
+    pos = {
+        "x" : p.ban.pos[0],
+        "y" : 0,
+        "z" : p.ban.pos[1]
+    }
+    return json.dumps(pos)
 
 
 if __name__ == '__main__':
