@@ -49,7 +49,6 @@ public class CallesClient : MonoBehaviour
                     else if (i == strs.Length - 1) strs[i] = '{' + strs[i];
                     else strs[i] = '{' + strs[i] + '}';
 
-                    Debug.Log(strs[i]);
                     Vector3 test = JsonUtility.FromJson<Vector3>(strs[i]);
                     newPositions.Add(test);
                 }

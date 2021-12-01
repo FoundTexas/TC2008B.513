@@ -7,9 +7,12 @@ using UnityEngine.Networking;
 
 public class BanderaClient : MonoBehaviour
 {
-    List<Vector3> Positions;
+
+    public List<GameObject> agents;
+    public List<Vector3> Positions;
 
     public GameObject calle;
+    bool started = false;
 
     IEnumerator SendData(string data)
     {
@@ -45,9 +48,6 @@ public class BanderaClient : MonoBehaviour
                 {
                     Debug.Log(strs[i]);
                     strs[i] = strs[i].Trim();
-                    if (i == 0) strs[i] = strs[i] + '}';
-                    else if (i == strs.Length - 1) strs[i] = '{' + strs[i];
-                    else strs[i] = '{' + strs[i] + '}';
 
                     Debug.Log(strs[i]);
                     Vector3 test = JsonUtility.FromJson<Vector3>(strs[i]);
@@ -56,17 +56,26 @@ public class BanderaClient : MonoBehaviour
 
                 Positions = newPositions;
 
-                foreach (Vector3 p in Positions)
+                if (!started)
                 {
-                    Vector3 vec = p;
-                    vec.x *= 5;
-                    vec.z *= 5;
+                    started = true;
+                    foreach (Vector3 p in Positions)
+                    {
+                        Vector3 vec = p;
+                        vec.x *= 5;
+                        vec.z *= 5;
 
-                    GameObject a = Instantiate(calle, vec, Quaternion.identity, null);
-
+                        GameObject a = Instantiate(calle, vec, Quaternion.identity, null);
+                        agents.Add(a);
+                    }
                 }
-
-
+                else
+                {
+                    for (int i = 0; i < agents.Count; i++)
+                    {
+                        agents[i].transform.position = Positions[i];
+                    }
+                }
 
             }
         }

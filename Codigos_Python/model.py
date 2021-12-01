@@ -48,9 +48,6 @@ class Semaforo(Agent):
                             self.rpos = [self.pos[0]+0.5, self.pos[1]]
                             self.dir = 3
 
-
-        print(self.unique_id,self.pos,self.Spar.unique_id,self.Spar.pos,self.Sop.unique_id,self.Sop.pos)
-
     def CheckCoche(self):
         cellCont = self.model.grid.get_cell_list_contents((self.pos[0], self.pos[1]))
         d = [0,0]
@@ -162,9 +159,7 @@ class Cruce(Agent):
         self.Dir[0] = d[0]
         self.Dir[1] = d[1]
 
-        print(self.unique_id,self.pos,"Dir",d)
         self.conexion,self.conW = self.GetConexion(d,0)
-        print("Conexion 1:",self.conexion.pos, self.conW)
         
     def SetConexiones2(self, dir2):
         d = dir2
@@ -181,9 +176,7 @@ class Cruce(Agent):
         self.Dir2[0] = d[0]
         self.Dir2[1] = d[1]
 
-        print(self.unique_id,self.pos,"Dir2",d)
         self.conexion2,self.conW2 = self.GetConexion(d,0)
-        print("Conexion 2:",self.conexion2.pos, self.conW2)
 
 class Obstaculo(Agent):
     def __init__(self, unique_id, model):
@@ -199,6 +192,7 @@ class Coche(Agent):
         self.target = [4,4]
         self.Dir = [0,0]
         self.cruzando = False
+        self.canMove = True
     
     def SetTarget(self, tar, obj, Cruces, ban):
         self.cruces = Cruces
@@ -206,8 +200,7 @@ class Coche(Agent):
         self.targetobj = self.cruces.index(obj)
         self.Routeing = True
         self.ban = ban
-        self.model.grid.move_agent(self.ban, self.target.pos)
-        print(self.targetobj)
+        self.model.grid.move_agent(self.ban, self.cruces[self.targetobj].pos)
 
     def GetMatrix(self) :
         print("Matriz Cruces")
@@ -222,8 +215,6 @@ class Coche(Agent):
                 else:
                     tmp.append(0)
             matrizD.append(tmp)
-        for x in range(len(matrizD)):
-            print(self.cruces[x].unique_id,self.cruces[x].pos, matrizD[x])
         return matrizD
 
     def nextCellCont(self,X,Y):
@@ -241,31 +232,35 @@ class Coche(Agent):
                     tmpcruce = cellCont[index]
                     if self.cruzando == False:
                         self.cruzando = True
-                        if self.target != cellCont[index]:
-                            if self.Routeing == False:
-                                rng1 = random.randrange(0,2)
-                                if rng1 == 0:
-                                    return cellCont[index].Dir
-                                if rng1 == 1:
-                                    return cellCont[index].Dir2
-                            elif self.Routeing == True:
-                                if index != self.targetobj :
-                                    dij = Graph()
-                                    index = self.cruces.index(cellCont[index])
-                                    self.ruta = dij.dijkstra(self.GetMatrix(),index,self.targetobj)
-                                    if len(self.ruta) > 0:
-                                        print (self.ruta)
-                                        tmp = self.cruces[self.ruta[0]] 
-                                        if tmp.unique_id == tmpcruce.conexion.unique_id:
-                                            return tmpcruce.Dir
-                                        elif tmp.unique_id == tmpcruce.conexion2.unique_id:
-                                            return tmpcruce.Dir2
-                                    else :
-                                        #self.model.grid.move_agent(self,(self.pos[0] - tmpcruce.Dir[1], self.pos[1] - tmpcruce.Dir[0]))
-                                        
-                                        self.target = random.choice(self.cruces)
-                                        self.SetTarget(self.target,self.target,self.cruces,self.ban)
-                                        return [0,0]
+                        if self.Routeing == False:
+                            rng1 = random.randrange(0,2)
+                            if rng1 == 0:
+                                return cellCont[index].Dir
+                            if rng1 == 1:
+                                return cellCont[index].Dir2
+                        elif self.Routeing == True:
+                            if index != self.targetobj :
+                                dij = Graph()
+                                index = self.cruces.index(cellCont[index])
+                                print(index)
+                                self.ruta = dij.dijkstra(self.GetMatrix(),index,self.targetobj)
+                                if len(self.ruta) > 0:
+                                    print (self.ruta)
+                                    tmp = self.cruces[self.ruta[0]] 
+                                    if tmp.unique_id == tmpcruce.conexion.unique_id:
+                                        return tmpcruce.Dir
+                                    elif tmp.unique_id == tmpcruce.conexion2.unique_id:
+                                        return tmpcruce.Dir2
+                                else :
+                                    #self.model.grid.move_agent(self,(self.pos[0] - tmpcruce.Dir[1], self.pos[1] - tmpcruce.Dir[0]))
+                                    self.canMove = False
+                                    self.model.StopCars()
+                                    return [0,0]
+                            else :
+                                                #self.model.grid.move_agent(self,(self.pos[0] - tmpcruce.Dir[1], self.pos[1] - tmpcruce.Dir[0]))
+                                self.canMove = False
+                                self.model.StopCars()
+                                return [0,0]
         return self.Dir
 
     def Obstacle(self, cellCont):
@@ -282,18 +277,18 @@ class Coche(Agent):
         return False
 
     def move(self):
+        if self.canMove == True:
+            self.curpos[0] = self.pos[0]
+            self.curpos[1] = self.pos[1]
 
-        self.curpos[0] = self.pos[0]
-        self.curpos[1] = self.pos[1]
+            self.Dir = self.GetDir()
+            X = self.Dir[0]
+            Y = self.Dir[1]
 
-        self.Dir = self.GetDir()
-        X = self.Dir[0]
-        Y = self.Dir[1]
-
-        nextCell = self.nextCellCont(X,Y)
-        obstruct = self.Obstacle(nextCell)
-        if (obstruct == False):
-            self.model.grid.move_agent(self, (self.pos[0]+X, self.pos[1]+Y))
+            nextCell = self.nextCellCont(X,Y)
+            obstruct = self.Obstacle(nextCell)
+            if (obstruct == False):
+                self.model.grid.move_agent(self, (self.pos[0]+X, self.pos[1]+Y))
 
     def step(self):
         self.move()
@@ -322,8 +317,8 @@ class CruceModel(Model):
                     self.cruces.append(o)
                     self.Calles.append(o)
 
-        mc =  Coche(0, self, True)
-        self.schedule3.add(mc)
+        self.mc =  Coche(0, self, True)
+        self.schedule3.add(self.mc)
 
         for i in range(self.num_agents):
             a =  Coche(i+1, self,False)
@@ -384,13 +379,17 @@ class CruceModel(Model):
             g = self.nextCellCont(self.cruces[c],1,0)
             g = self.nextCellCont(self.cruces[c],0,1)
 
-        calle = self.cruces[0]#random.choice(self.cruces)
+        calle = self.cruces[1]#random.choice(self.cruces)
         tar = self.cruces[round(len(self.cruces)/2)]
         print("Ter: ",tar)
         ban = Bandera(self,tar.pos)
         self.grid.place_agent(ban, tar.pos)
-        mc.SetTarget(tar,tar,self.cruces,ban)
-        self.grid.place_agent(mc, calle.pos)
+        self.mc.SetTarget(tar,tar,self.cruces,ban)
+        self.grid.place_agent(self.mc, calle.pos)
+
+    def StopCars(self):
+        for i in range(self.num_agents):
+            self.schedule.agents[i].canMove = False
 
     def AssignSemaforos(self,a,X,Y):
         tmp = a
@@ -678,8 +677,13 @@ def semaforos():
 @app.route('/banderas', methods=['GET','POST'])
 
 def banderas():
-    positions,bools = model.step()
-    return CallesToJSON(bools)
+    p = model.mc
+    pos = {
+        "x" : p.ban.pos[0],
+        "y" : 0,
+        "z" : p.ban.pos[1]
+    }
+    return json.dumps(pos)
 
 
 if __name__ == '__main__':
