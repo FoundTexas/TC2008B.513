@@ -1,0 +1,4 @@
+---
+applications:
+ - name: TC2008B-Reto
+   random-route: true
