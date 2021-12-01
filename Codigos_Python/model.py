@@ -102,6 +102,11 @@ class Calle(Agent):
       self.Dir[0] = dir[0]
       self.Dir[1] = dir[1]
 
+class Bandera(Agent):
+    def __init__(self, unique_id, model, dir):
+      super().__init__(unique_id, model)
+      self.type = "BANDERA"
+
 class Cruce(Agent):
     def __init__(self, unique_id, model):
       super().__init__(unique_id, model)
@@ -110,7 +115,7 @@ class Cruce(Agent):
       self.Dir2 = [0,0]
 
     def GetConexion(self,dir,i):
-        print ("dir:",dir,i)
+        #print ("dir:",dir,i)
         cellCont = self.model.grid.get_cell_list_contents(self.model.grid.torus_adj((self.pos[0]+dir[0], self.pos[1]+dir[1])))
         if len(cellCont) > 0:
             for index in range(len(cellCont)):
@@ -121,22 +126,6 @@ class Cruce(Agent):
                     dir[1] += tmp[1]
                     i += 1
                     return self.GetConexion(dir,i)
-                elif cellCont[index].type == "CRUCE":
-                    return cellCont[index],i
-        return self,i
-    
-    def GetConexion2(self,dir,i):
-        print ("dir:",dir,i)
-        cellCont = self.model.grid.get_cell_list_contents(self.model.grid.torus_adj((self.pos[0]+dir[0], self.pos[1]+dir[1])))
-        if len(cellCont) > 0:
-            for index in range(len(cellCont)):
-                tmp = [0,0]
-                if cellCont[index].type == "CALLE":
-                    tmp = cellCont[index].Dir
-                    dir[0] += tmp[0]
-                    dir[1] += tmp[1]
-                    i += 1
-                    return self.GetConexion2(dir,i)
                 elif cellCont[index].type == "CRUCE":
                     return cellCont[index],i
         return self,i
@@ -157,7 +146,7 @@ class Cruce(Agent):
         self.Dir[1] = d[1]
 
         print(self.unique_id,self.pos,"Dir",d)
-        self.conexion,self.conW = self.GetConexion2(d,0)
+        self.conexion,self.conW = self.GetConexion(d,0)
         print("Conexion 1:",self.conexion.pos, self.conW)
         
     def SetConexiones2(self, dir2):
@@ -185,14 +174,38 @@ class Obstaculo(Agent):
         self.type = "OBSTACULO"
 
 class Coche(Agent):
-    def __init__(self, unique_id, model):
+    def __init__(self, unique_id, model,b):
         super().__init__(unique_id, model)
         self.type = "COCHE"
-        self.isCollecting = True
+        self.Routeing = b
         self.curpos = [4,4]
         self.target = [4,4]
         self.Dir = [0,0]
         self.cruzando = False
+    
+    def SetTarget(self, tar, obj, Cruces):
+        self.cruces = Cruces
+        self.target = tar
+        self.targetobj = self.cruces.index(obj)
+        self.Routeing = True
+        print(self.targetobj)
+
+    def GetMatrix(self) :
+        print("Matriz Cruces")
+        matrizD = []
+        for x in range(len(self.cruces)):
+            tmp = []
+            for c in range(len(self.cruces)):
+                if self.cruces[c].unique_id == self.cruces[x].conexion.unique_id:
+                    tmp.append(self.cruces[x].conW)
+                elif self.cruces[c].unique_id == self.cruces[x].conexion2.unique_id:
+                    tmp.append(self.cruces[x].conW2)
+                else:
+                    tmp.append(0)
+            matrizD.append(tmp)
+        for x in range(len(matrizD)):
+            print(self.cruces[x].unique_id,self.cruces[x].pos, matrizD[x])
+        return matrizD
 
     def nextCellCont(self,X,Y):
         return self.model.grid.get_cell_list_contents(self.model.grid.torus_adj((self.pos[0]+X, self.pos[1]+Y)))
@@ -206,14 +219,29 @@ class Coche(Agent):
                     self.cruzando = False
                     return cellCont[index].Dir
                 elif cellCont[index].type == "CRUCE":
+                    tmpcruce = cellCont[index]
                     if self.cruzando == False:
                         self.cruzando = True
-                        rng1 = random.randrange(0,2)
-                        if rng1 == 0:
-                            return cellCont[index].Dir
-                        if rng1 == 1:
-                            return cellCont[index].Dir2
-
+                        if self.target != cellCont[index]:
+                            if self.Routeing == False:
+                                rng1 = random.randrange(0,2)
+                                if rng1 == 0:
+                                    return cellCont[index].Dir
+                                if rng1 == 1:
+                                    return cellCont[index].Dir2
+                            elif self.Routeing == True:
+                                dij = Graph()
+                                index = self.cruces.index(cellCont[index])
+                                self.ruta = dij.dijkstra(self.GetMatrix(),index,self.targetobj)
+                                print (self.ruta)
+                                tmp = self.cruces[self.ruta[0]] 
+                                if tmp.unique_id == tmpcruce.conexion.unique_id:
+                                    return tmpcruce.Dir
+                                elif tmp.unique_id == tmpcruce.conexion2.unique_id:
+                                    return tmpcruce.Dir2
+                        elif self.target != cellCont[index]:
+                            self.model.grid.move_agent(self,(self.pos[0] - cellCont[index].Dir[0], self.pos[1] - cellCont[index].Dir[1]))
+                            return [0,0]
         return self.Dir
 
     def Obstacle(self, cellCont):
@@ -254,6 +282,7 @@ class CruceModel(Model):
         self.grid = MultiGrid(width, height, True)
         self.schedule2 = RandomActivation(self)
         self.schedule = RandomActivation(self)
+        self.schedule3 = RandomActivation(self)
         self.Calles = []
         self.cruces = []
         self.semaforos = []
@@ -269,8 +298,11 @@ class CruceModel(Model):
                     self.cruces.append(o)
                     self.Calles.append(o)
 
+        mc =  Coche(0, self, True)
+        self.schedule3.add(mc)
+
         for i in range(self.num_agents):
-            a =  Coche(i, self)
+            a =  Coche(i+1, self,False)
             self.grid.place_agent(a, (0, 0))
             self.grid.move_to_empty(a)
             self.schedule.add(a)
@@ -324,27 +356,11 @@ class CruceModel(Model):
             g = self.nextCellCont(self.cruces[c],1,0)
             g = self.nextCellCont(self.cruces[c],0,1)
 
-        print("Matriz Cruces")
-        self.matrizD = []
-        for x in range(len(self.cruces)):
-            tmp = []
-            for c in range(len(self.cruces)):
-                if self.cruces[c].unique_id == self.cruces[x].conexion.unique_id:
-                    tmp.append(self.cruces[x].conW)
-                elif self.cruces[c].unique_id == self.cruces[x].conexion2.unique_id:
-                    tmp.append(self.cruces[x].conW2)
-                else:
-                    tmp.append(0)
-            self.matrizD.append(tmp)
-        for x in range(len(self.matrizD)):
-            print(self.cruces[x].unique_id,self.cruces[x].pos, self.matrizD[x])
-        
-        print("Dijtra:")
-
-        dij = Graph(len(self.matrizD))
-        dij.graph = self.matrizD
-
-        dij.dijkstra(0)
+        calle = self.cruces[0]#random.choice(self.cruces)
+        tar = self.cruces[round(len(self.cruces)/2)]
+        print("Ter: ",tar)
+        mc.SetTarget(tar.pos,tar,self.cruces)
+        self.grid.place_agent(mc, calle.pos)
 
         print("Semaforos")
         for s in range(len(self.semaforos)):
@@ -357,11 +373,9 @@ class CruceModel(Model):
             if X > 0:
                 x = X + 2
                 y = Y + 1
-                print("X pos")
             elif X < 0:
                 x = X - 2
                 y = Y - 1
-                print("X neg")
             cellCont = self.grid.get_cell_list_contents(a.model.grid.torus_adj((a.pos[0]+x, a.pos[1]+y)))
             if len(cellCont) > 0:
                 for index in range(len(cellCont)):
@@ -408,11 +422,9 @@ class CruceModel(Model):
             if Y > 0:
                 x = X - 1
                 y = Y + 2
-                print("Y pos")
             elif Y < 0:
                 x = X + 1
                 y = Y - 2
-                print("Y neg")
             cellCont = self.grid.get_cell_list_contents(a.model.grid.torus_adj((a.pos[0]+x, a.pos[1]+y)))
             if len(cellCont) > 0:
                 for index in range(len(cellCont)):
@@ -517,13 +529,24 @@ class CruceModel(Model):
 
     def step(self):
         self.schedule.step()
+        self.schedule3.step()
 
         ps = []
+        pb = []
+        xy = self.schedule3.agents[0].pos
+        p = [xy[0],0,xy[1]]
+        y = self.schedule3.agents[0]
+        ps.append(p)
+        pb.append(y)
+
         for i in range(self.num_agents):
             xy = self.schedule.agents[i].pos
             p = [xy[0],0,xy[1]]
+            y = self.schedule.agents[i]
             ps.append(p)
-        return ps
+            pb.append(y)
+
+        return ps,pb
 
     def step2(self):
         self.schedule2.step()
@@ -564,13 +587,14 @@ app = Flask(__name__, static_url_path = '')
 
 model = CruceModel(20,len(matrix[0]),len(matrix),matrix)
 
-def positionsToJSON(ps):
+def positionsToJSON(ps,pb):
     posDICT = []
-    for p in ps:
+    for p in range(len(ps)):
         pos = {
-            "x" : p[0],
-            "y" : p[1],
-            "z" : p[2]
+            "x" : ps[p][0],
+            "y" : ps[p][1],
+            "z" : ps[p][2],
+            "b": pb[p].Routeing
         }
         posDICT.append(pos)
     return json.dumps(posDICT)
@@ -616,8 +640,8 @@ def calles():
 @app.route('/muliagentes', methods=['GET','POST'])
 
 def multiagentes():
-    positions = model.step()
-    return positionsToJSON(positions)
+    positions,bools = model.step()
+    return positionsToJSON(positions,bools)
 
 @app.route('/semaforos', methods=['GET','POST'])
 

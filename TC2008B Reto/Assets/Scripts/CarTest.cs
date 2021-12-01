@@ -1,18 +1,29 @@
 ﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Networking;
 
+[Serializable]
+public class car
+{
+    public float x;
+    public float y;
+    public float z;
+    public bool b;
+}
+
 public class CarTest : MonoBehaviour
 {
     public List<Robot> agents;
     public List<Vector3> Positions;
+    public List<car> types;
     public float timeToUpdate = 5.0f;
     private float timer;
     bool started = false;
-    public GameObject CarPref;
+    public GameObject CarPref, CarPref2;
 
     IEnumerator SendData(string data)
     {
@@ -36,7 +47,8 @@ public class CarTest : MonoBehaviour
             else
             {
 
-                List<Vector3> newPositions = new List<Vector3>();
+                List<car> newtypes = new List<car>();
+
                 string txt = www.downloadHandler.text.Replace('\'', '\"');
                 txt = txt.TrimStart('"', '{', 'd', 'a', 't', 'a', ':', '[');
                 txt = "{\"" + txt;
@@ -46,23 +58,38 @@ public class CarTest : MonoBehaviour
 
                 for (int i = 0; i < strs.Length; i++)
                 {
+                    Debug.Log(strs[i]);
                     strs[i] = strs[i].Trim();
                     if (i == 0) strs[i] = strs[i] + '}';
                     else if (i == strs.Length - 1) strs[i] = '{' + strs[i];
                     else strs[i] = '{' + strs[i] + '}';
-                    Vector3 test = JsonUtility.FromJson<Vector3>(strs[i]);
-                    newPositions.Add(test);
+
+                    Debug.Log(strs[i]);
+                    car test = JsonUtility.FromJson<car>(strs[i]);
+
+                    newtypes.Add(test);
                 }
 
-                Positions = newPositions;
+                types = newtypes;
 
                 if (!started)
                 {
                     started = true;
-                    foreach (Vector3 p in Positions)
+                    foreach(car b in types)
                     {
-                        Robot a = Instantiate(CarPref, p * 5f, Quaternion.identity, null).GetComponent<Robot>();
-                        agents.Add(a);
+                        Vector3 pos = new Vector3(b.x, b.y, b.z);
+                        if (b.b)
+                        {
+
+                            Robot a = Instantiate(CarPref2, pos * 5f, Quaternion.identity, null).GetComponent<Robot>();
+                            agents.Add(a);
+                        }
+                        else if (b.b == false)
+                        {
+
+                            Robot a = Instantiate(CarPref, pos * 5f, Quaternion.identity, null).GetComponent<Robot>();
+                            agents.Add(a);
+                        }
                     }
                 }
                 else
@@ -70,9 +97,11 @@ public class CarTest : MonoBehaviour
 
                     for (int i = 0; i < agents.Count; i++)
                     {
-                        if (agents[i].target != Positions[i] * 5f)
+                        car b = types[i];
+                        Vector3 pos = new Vector3(b.x, b.y, b.z);
+                        if (agents[i].target != pos * 5f)
                         {
-                            agents[i].changeDir(Positions[i] * 5f);
+                            agents[i].changeDir(pos * 5f);
                         }
                     }
                 }

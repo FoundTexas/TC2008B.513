@@ -18,30 +18,6 @@ class Graph:
                 minimum = dist[i]
                 min_index = i
         return min_index
- 
- 
-    # Function to print shortest path
-    # from source to j
-    # using parent array
-    def printPath(self, parent, j):
-         
-        #Base Case : If j is source
-        if parent[j] == -1 :
-            print ("P",j)
-            return
-        self.printPath(parent , parent[j])
-        print ("p",j)
-         
- 
-    # A utility function to print
-    # the constructed distance
-    # array
-    def printSolution(self, dist, parent):
-        src = 0
-        print("Vertex \t\tDistance from Source\tPath")
-        for i in range(1, len(dist)):
-            print("\n%d --> %d \t\t%d \t\t\t\t\t" % (src, i, dist[i])),
-            self.printPath(parent,i)
 
     def getPath(self, parent, j, result): 
         #Base Case : If j is source
@@ -105,11 +81,7 @@ class Graph:
                     if dist[u] + graph[u][i] < dist[i]:
                         dist[i] = dist[u] + graph[u][i]
                         parent[i] = u
-        print(parent)
-        print(dist)
  
-        # print the constructed distance array
-        self.printSolution(dist,parent)
         print("\n\ntest\n")
         print("\n%d --> %d \t\t%d \t\t\t\t\t" % (src, target, dist[target]))
         result = []
