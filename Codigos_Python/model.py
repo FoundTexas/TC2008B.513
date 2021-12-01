@@ -88,7 +88,7 @@ class Semaforo(Agent):
             self.state -= 1
             if self.state <= -8:
                 self.state = 8
-        if self.Started == False:
+        elif self.Started == False:
             self.Started = self.CheckCoche()
 
     def step(self):
@@ -351,6 +351,10 @@ class CruceModel(Model):
                     self.grid.place_agent(o,(X,(height-1)-Y))
                 self.Calles.append(o)
 
+        print("Semaforos")
+        for s in range(len(self.semaforos)):
+            self.CheckSemaforo(self.semaforos[s])
+
         print("Cruces")
         for c in range(len(self.cruces)):
             g = self.nextCellCont(self.cruces[c],1,0)
@@ -361,10 +365,6 @@ class CruceModel(Model):
         print("Ter: ",tar)
         mc.SetTarget(tar.pos,tar,self.cruces)
         self.grid.place_agent(mc, calle.pos)
-
-        print("Semaforos")
-        for s in range(len(self.semaforos)):
-            self.CheckSemaforo(self.semaforos[s])
 
     def AssignSemaforos(self,a,X,Y):
         tmp = a
