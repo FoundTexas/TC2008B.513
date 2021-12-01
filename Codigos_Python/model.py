@@ -120,7 +120,7 @@ class Calle(Agent):
       self.Dir[1] = dir[1]
 
 class Bandera(Agent):
-    def __init__(self, unique_id, model, dir):
+    def __init__(self, unique_id, model):
       super().__init__(unique_id, model)
       self.type = "BANDERA"
 
@@ -200,11 +200,13 @@ class Coche(Agent):
         self.Dir = [0,0]
         self.cruzando = False
     
-    def SetTarget(self, tar, obj, Cruces):
+    def SetTarget(self, tar, obj, Cruces, ban):
         self.cruces = Cruces
         self.target = tar
         self.targetobj = self.cruces.index(obj)
         self.Routeing = True
+        self.ban = ban
+        self.model.grid.move_agent(self.ban, self.target.pos)
         print(self.targetobj)
 
     def GetMatrix(self) :
@@ -247,18 +249,23 @@ class Coche(Agent):
                                 if rng1 == 1:
                                     return cellCont[index].Dir2
                             elif self.Routeing == True:
-                                dij = Graph()
-                                index = self.cruces.index(cellCont[index])
-                                self.ruta = dij.dijkstra(self.GetMatrix(),index,self.targetobj)
-                                print (self.ruta)
-                                tmp = self.cruces[self.ruta[0]] 
-                                if tmp.unique_id == tmpcruce.conexion.unique_id:
-                                    return tmpcruce.Dir
-                                elif tmp.unique_id == tmpcruce.conexion2.unique_id:
-                                    return tmpcruce.Dir2
-                        elif self.target != cellCont[index]:
-                            self.model.grid.move_agent(self,(self.pos[0] - cellCont[index].Dir[0], self.pos[1] - cellCont[index].Dir[1]))
-                            return [0,0]
+                                if index != self.targetobj :
+                                    dij = Graph()
+                                    index = self.cruces.index(cellCont[index])
+                                    self.ruta = dij.dijkstra(self.GetMatrix(),index,self.targetobj)
+                                    if len(self.ruta) > 0:
+                                        print (self.ruta)
+                                        tmp = self.cruces[self.ruta[0]] 
+                                        if tmp.unique_id == tmpcruce.conexion.unique_id:
+                                            return tmpcruce.Dir
+                                        elif tmp.unique_id == tmpcruce.conexion2.unique_id:
+                                            return tmpcruce.Dir2
+                                    else :
+                                        #self.model.grid.move_agent(self,(self.pos[0] - tmpcruce.Dir[1], self.pos[1] - tmpcruce.Dir[0]))
+                                        
+                                        self.target = random.choice(self.cruces)
+                                        self.SetTarget(self.target,self.target,self.cruces,self.ban)
+                                        return [0,0]
         return self.Dir
 
     def Obstacle(self, cellCont):
@@ -380,7 +387,9 @@ class CruceModel(Model):
         calle = self.cruces[0]#random.choice(self.cruces)
         tar = self.cruces[round(len(self.cruces)/2)]
         print("Ter: ",tar)
-        mc.SetTarget(tar.pos,tar,self.cruces)
+        ban = Bandera(self,tar.pos)
+        self.grid.place_agent(ban, tar.pos)
+        mc.SetTarget(tar,tar,self.cruces,ban)
         self.grid.place_agent(mc, calle.pos)
 
     def AssignSemaforos(self,a,X,Y):
@@ -665,6 +674,12 @@ def multiagentes():
 def semaforos():
     lights = model.step2()
     return BoolsToJSON(lights)
+
+@app.route('/banderas', methods=['GET','POST'])
+
+def banderas():
+    positions,bools = model.step()
+    return CallesToJSON(bools)
 
 
 if __name__ == '__main__':
